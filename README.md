@@ -55,6 +55,10 @@ audit-memory/
 
 Every verification step is read-only by design — the skill never runs `create`/`apply`/`delete`/`deploy`/`migrate`/`write` against live infrastructure. Before deleting any memory file it prints the full plan (file → bucket → action → reason) and checks whether the memory directory is under version control, flagging if deletions won't be recoverable.
 
+## Contributing
+
+Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

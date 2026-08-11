@@ -59,14 +59,25 @@ Every file lands in one bucket. If a file feels like it straddles two, that's us
 
 Do not compromise here by marking it `[RESOLVED]` and keeping it. A resolved-incident file that survives as an annotation is still a story about something being broken, sitting in a future session's context, waiting to be pattern-matched onto an unrelated symptom. Deleting it is the whole point; the durable extract is how you avoid losing anything of value.
 
+**Before finalizing a Bucket B verdict, argue the other side.** Deletion is the one action in this skill you can't undo by re-running it, so don't let a single classification pass be the only check. For each file you're about to bucket as B, actively try to break your own case: is there a follow-up mentioned anywhere ("should also…", "revisit if…"), a caveat that narrows the fix's scope, a dependency that isn't independently verified, or a reason the "verified" evidence might be weaker than it looks (verified in one environment but not another, verified once but not durably)? If subagents are available, this works best as a literal second opinion — dispatch a fresh subagent the candidate file and nothing else, ask it to build the strongest case *for keeping it*, and only proceed with deletion if that case doesn't hold up. If subagents aren't available, do the same adversarial pass yourself before moving on — write the counter-argument out, don't just eyeball it. A file where the adversarial pass finds a real gap moves to Bucket C instead, not back to a stalled Bucket B.
+
 **Bucket C — Open, unresolved, or decision pending.** An active investigation, a known-broken thing not yet fixed, a decision the user hasn't made, a partial fix, a "revisit when Y ships."
 → **Keep as-is, with a light touch.** Correct only what Phase 2 proved wrong, and note the correction. Don't rewrite the framing, don't editorialize about staleness, don't declare something resolved because it looks quiet — an unverified guess that a problem went away is worse than an honest open question. If verification showed the problem *is* in fact fixed, that reclassifies it into Bucket B and it gets extracted and deleted.
 
 ## Phase 4 — Show the plan, then execute
 
-Before touching anything, print a compact table: file → bucket → action → one-line reason, plus the list of extracts you're moving and where they're going. Then carry it out in the same run — no need to wait for approval. The plan exists so the user can see and challenge your reasoning, not so the work stalls.
+Before touching anything, print a compact table: file → bucket → action → one-line reason, plus the list of extracts you're moving and where they're going. Non-destructive actions (Bucket A corrections, Bucket C light-touch edits) can proceed in the same run right after the plan — no need to wait for approval, since nothing here is unrecoverable and the plan exists so the user can see and challenge the reasoning, not so the work stalls.
 
-Two things worth doing before deleting: check whether the memory directory is under version control (`git -C <dir> rev-parse` / `git status`), and mention in the plan whether deletions are recoverable. If it isn't tracked and you're deleting more than a couple of files, that's worth flagging in one sentence — the user may want a copy first.
+**Deletions are different — check version control before running any of them:**
+
+```bash
+git -C <memory-dir> rev-parse 2>/dev/null && git -C <memory-dir> status --porcelain
+```
+
+- **Tracked and clean** (or you've confirmed the user is fine committing first): deletions are recoverable via git history. Proceed with the plan in the same run.
+- **Not tracked, or tracked with uncommitted changes that would be lost**: **stop and ask before deleting anything.** State plainly that these deletions are permanent and unrecoverable as things stand, list exactly which files Phase 3 marked for deletion, and wait for explicit go-ahead. This applies regardless of file count — one unrecoverable delete is one too many to run silently. Offer the obvious mitigation (`git init && git add -A && git commit` in the memory dir first) as a way to make it recoverable before proceeding, if the user would rather not decide file-by-file.
+
+Extraction and rewrites (the non-delete half of Bucket B's handling) aren't gated by this — only the deletion itself is.
 
 ## Phase 5 — Repair the fallout
 

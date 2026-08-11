@@ -24,6 +24,40 @@ WIKILINK = re.compile(r"\[\[([^\[\]]+?)\]\]")
 # [text](target) -- skip absolute URLs, mailto, and pure anchors
 MDLINK = re.compile(r"(?<!!)\[([^\]\[]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 SKIP_SCHEMES = ("http://", "https://", "mailto:", "ftp://", "tel:", "#", "data:")
+FRONTMATTER_NAME = re.compile(r"^name:\s*[\"']?([^\"'\n]+)[\"']?\s*$", re.M)
+
+
+def frontmatter_name(path: Path) -> str | None:
+    """Read the `name:` field out of a file's YAML frontmatter, if any."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end == -1:
+        return None
+    m = FRONTMATTER_NAME.search(text[:end])
+    return m.group(1).strip() if m else None
+
+
+def build_name_index(files):
+    """Map a file's frontmatter `name:` slug (and its filename stem) to its path.
+
+    Wikilinks like [[app-builder-vision]] are written against the frontmatter
+    `name:` slug, not the on-disk filename -- this repo's memory files commonly
+    differ (e.g. `project_app-builder-vision.md` has `name: app-builder-vision`).
+    Without this index every such wikilink reads as dangling even though the
+    file it names exists.
+    """
+    index: dict[str, Path] = {}
+    for p in files:
+        index.setdefault(p.stem, p)
+        name = frontmatter_name(p)
+        if name:
+            index.setdefault(name, p)
+    return index
 
 
 def strip_code(text: str) -> str:
@@ -53,6 +87,7 @@ def scan(root: Path):
     known = {p.resolve() for p in files}
     # also allow non-markdown files that exist on disk
     known |= {p.resolve() for p in root.rglob("*") if p.is_file()}
+    name_index = build_name_index(files)
 
     broken, total = [], 0
     for f in files:
@@ -70,6 +105,9 @@ def scan(root: Path):
                 found.append((tgt, "markdown"))
             for target, kind in found:
                 total += 1
+                slug = target.split("#")[0].split("|")[0].strip()
+                if slug in name_index:
+                    continue
                 if not any(c in known or c.exists() for c in candidates(target, f.parent, root)):
                     broken.append({
                         "file": str(f.relative_to(root)),
